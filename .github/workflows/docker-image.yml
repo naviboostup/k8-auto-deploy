@@ -1,0 +1,49 @@
+name: Deploy to AWS EKS
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+      
+    - name: Set up environment variables
+      run: |
+        echo "EKS_CLUSTER_NAME=navi-demo-cluster" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Build Docker image
+      run: docker build -t newtm/sample-node-app:${{ github.sha }} .
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v2
+      with:
+         username: ${{ secrets.DOCKER_USERNAME }}
+         password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Push Docker image to Docker Hub
+      run:  docker push newtm/sample-node-app:${{ github.sha }}
+
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-south-1
+
+    - name: Update kube config
+      run: aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region ap-south-1
+
+    - name: Deploy to EKS
+      run: |
+        sed -i "s/newtm\/sample-node-app:{{.Values.imageTag}}/newtm\/sample-node-app:${{ github.sha }}/g" deployment.yaml
+        kubectl apply -f deployment.yaml 

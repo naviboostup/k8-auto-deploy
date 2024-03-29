@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-node-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sample-node-app
+  template:
+    metadata:
+      labels:
+        app: sample-node-app
+    spec:
+      containers:
+      - name: sample-node-app
+        image: newtm/sample-node-app:{{.Values.imageTag}}  # Using a version tag
+        ports:
+        - containerPort: 80  # Specify the port your container is listening on
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-node-serv
+spec:
+  type: LoadBalancer
+  selector:
+    app: sample-node-app
+  ports:
+    - protocol: TCP
+      port: 80  # External port to access the service
+      targetPort: 80  # Port your container is listening on
